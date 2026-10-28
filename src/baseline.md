@@ -38,13 +38,15 @@ JITは本質的に「書いてから実行する」ので、W^Xとの両立に�
 | Apple Siliconの`MAP_JIT` | `pthread_jit_write_protect_np()`でスレッドごとにWとXを切り替える | Hardened Runtimeでは`com.apple.security.cs.allow-jit`エンタイトルメントが必要 |
 | メモリ保護キー | スレッドごとにページの書き込み権限を切り替える | 「そのほかの機構」の章を参照 |
 
+W^Xを守りながら実行時に機械語を生成する簡単な例は、『Binary Hacks Rebooted』のHack #85にあります。
+
 ## ASLRとPIE
 
 ASLR（Address Space Layout Randomization）は、スタック、ヒープ、共有ライブラリ、実行ファイルのロードアドレスをランダムにします。実行ファイル自体をランダムな位置に置くには、PIE（Position Independent Executable）である必要があります。
 
 コード生成器は、グローバル変数や関数のアドレスをPC相対かGOT経由で得る、位置独立なコードを生成します。絶対アドレスをコードに埋め込むと、ロード時にコードを書き換えるテキストリロケーション（`DT_TEXTREL`）が生じてW^Xを破ります。`-z text`でリンクすれば、これをエラーにできます。
 
-エラーメッセージやデバッグ出力、アドレスを種にしたハッシュ値からアドレスが漏れると、ASLRの効果は薄れます。
+エラーメッセージやデバッグ出力、アドレスを種にしたハッシュ値からアドレスが漏れると、ASLRの効果は薄れます。ASLRの実装と回避手法は『Binary Hacks Rebooted』のHack #55で、`-static`で静的リンクするとASLRが効かなくなる話はHack #13で扱っています。
 
 ## RELRO
 
@@ -70,7 +72,7 @@ void f(const char *s) {
 }
 ```
 
-推奨は、配列やアドレスを取られたローカル変数を持つ関数を対象にする`-fstack-protector-strong`です。カナリアの置き場所は、x86-64のglibcではTLS（`%fs:0x28`）、AArch64のglibcではグローバル変数`__stack_chk_guard`です。独自のコード生成器で実装するなら、Cコンパイラと同じ場所を参照するとランタイムと整合が取れます。
+推奨は、配列やアドレスを取られたローカル変数を持つ関数を対象にする`-fstack-protector-strong`です。カナリアの置き場所は、x86-64のglibcではTLS（`%fs:0x28`）、AArch64のglibcではグローバル変数`__stack_chk_guard`です。独自のコード生成器で実装するなら、Cコンパイラと同じ場所を参照するとランタイムと整合が取れます。カナリアの有無でスタックフレームがどう変わるかは、『Binary Hacks Rebooted』のHack #59でアセンブリを見ながら観察しています。
 
 カナリアは連続的なオーバーフローには効きますが、任意アドレス書き込みやカナリアの漏洩には無力です。後の章のShadow StackやPACは、より強いbackward edgeの保護を提供します。
 
@@ -91,7 +93,7 @@ void f(const char *s) {
 
 ## Cで書いたランタイムのためのフラグ
 
-ランタイムやFFI先のCコードには、ディストリビューションが標準で使っているhardeningフラグを付けておきましょう。代表的なものを挙げます（詳しくはOpenSSFの*Compiler Options Hardening Guide for C and C++*を参照）。
+ランタイムやFFI先のCコードには、ディストリビューションが標準で使っているhardeningフラグを付けておきましょう。代表的なものを挙げます（詳しくはOpenSSFの *Compiler Options Hardening Guide for C and C++* を参照）。
 
 | フラグ | 効果 |
 |---|---|

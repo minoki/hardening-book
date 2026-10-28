@@ -33,6 +33,8 @@ clang -flto -fvisibility=hidden -fsanitize=cfi foo.c bar.c
 
 その代わり、LTOが必須で、共有ライブラリをまたぐには`-fsanitize-cfi-cross-dso`がいります。また、関数ポインタの値が関数本体のアドレスと一致しなくなるので、関数ポインタとシンボルのアドレスを比較するコードは壊れます。
 
+Clang CFIが実際に出力するチェックのコードや、`-fsanitize-cfi-cross-dso`での動作は、『Binary Hacks Rebooted』のHack #58でgdbを使って追いかけています。
+
 ## kCFI
 
 **kCFI**（`-fsanitize=kcfi`）は、Linuxカーネル向けに作られた、LTO不要の型ベースのCFIです。各関数の直前に型のハッシュ値を埋め込み、間接呼び出しの直前に照合します。

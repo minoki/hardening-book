@@ -9,6 +9,8 @@
 - The rustc book, *Exploit Mitigations*（Rustがどの緩和策をどう実装しているかの解説。ほかの言語の処理系にも参考になります）
   <https://doc.rust-lang.org/rustc/exploit-mitigations.html>
 - M. Abadi, M. Budiu, Ú. Erlingsson, J. Ligatti, *Control-Flow Integrity*, CCS 2005
+- 河田 旺、小池 悠生、渡邉 慶一、佐伯 学哉、荒田 実樹 著『Binary Hacks Rebooted』（オライリー・ジャパン、2024年、ISBN978-4-8144-0085-0）
+  - サニタイザ（Hack #46、#47）、ASLR（Hack #55）、ROP（Hack #56）、Intel CET（Hack #57）、Clang CFI（Hack #58）、スタックフレームとSSP（Hack #59）、ファジング（Hack #60〜#63）、MeltdownとSpectre（Hack #67）など、この資料と関係の深いトピックを扱っています
 
 ## サニタイザ
 

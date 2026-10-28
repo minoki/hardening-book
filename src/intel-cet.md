@@ -199,4 +199,6 @@ Cから呼ばれるコールバックの先頭には`ENDBR64`が必要です。�
 sde -cet -cet-stderr -- ./a.out
 ```
 
+『Binary Hacks Rebooted』のHack #57では、Hack #56で組み立てたROPによる攻撃がSDE上のShadow Stackで止まる様子を見ています。
+
 LinuxでShadow Stackの違反が起きると、`SIGSEGV`（`si_code`は`SEGV_CPERR`）でプロセスが終了し、カーネルログにも`control protection fault`と記録されます。

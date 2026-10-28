@@ -29,6 +29,6 @@
 
 ## 前提と表記
 
-x86-64とAArch64のアセンブリが少し読めることを前提にします。主にLinux（ELF）を想定し、必要に応じてmacOS／iOS、Windows、Androidに触れます。
+x86-64とAArch64のアセンブリが少し読めることを前提にします。不安があれば、『Binary Hacks Rebooted』のHack #2（アセンブリ入門）とHack #83（ABIと呼び出し規約）が役に立ちます。主にLinux（ELF）を想定し、必要に応じてmacOS／iOS、Windows、Androidに触れます。
 
 コマンドの例はGCC 13、Clang 21、GNU binutils 2.42程度を想定しています。OSやツールの対応バージョンは執筆時点（2026年）の情報です。この分野は変化が速いので、実際に使うときは参考文献の一次資料で確認してください。

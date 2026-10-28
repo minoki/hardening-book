@@ -55,6 +55,8 @@ clang -g -O1 -fno-omit-frame-pointer -fsanitize=address foo.c
 ASAN_OPTIONS=detect_leaks=1:detect_stack_use_after_return=1 ./a.out
 ```
 
+サニタイザの基本的な使い方は『Binary Hacks Rebooted』のHack #46で、シャドウメモリとレッドゾーンのしくみは提案論文に沿ってHack #47で解説しています。
+
 ### 独自アロケータに注釈を入れる
 
 ランタイムが`malloc`から大きなチャンクを取って自分で切り分けている場合、ASanから見ればチャンク全体が1つの有効なオブジェクトです。**チャンク内での範囲外アクセスやuse-after-freeは検出されません**。これを補うのが手動ポイズニングのAPIです。
@@ -109,7 +111,7 @@ WRITE of size 1 at 0xe39a70be010a thread T0
 - ASanビルドのときだけ、オブジェクトの間に16バイトほどのレッドゾーンを空けます。隙間がないと、隣への範囲外アクセスは検出できません。
 - ASanビルドのときだけ、解放したメモリをしばらく再利用しないようにします。
 - シャドウの粒度は8バイトなので、オブジェクトの先頭は8バイト（できれば16バイト）境界にそろえます。
-- 容量と長さが異なるベクタ型のバッファには、`__sanitizer_annotate_contiguous_container()`を使うと「容量内だが長さ外」へのアクセスも検出できます。
+- capacityと長さが異なるベクタ型のバッファには、`__sanitizer_annotate_contiguous_container()`を使うと「capacity内だが長さ外」へのアクセスも検出できます。
 
 ### GCのスキャン
 
@@ -217,3 +219,5 @@ Goの`go build -asan`や`-msan`は、Goのコンパイラが出力した計装�
 ## ファジングとの組み合わせ
 
 サニタイザはファジングと組み合わせると威力を発揮します。libFuzzerやAFL++でランタイム、パーサ、FFI境界の関数をたたき、ASanやUBSanで異常を捕まえます。処理系そのものをファジングするのも有効です。特にJITや最適化器の誤コンパイルは、生成コードのメモリ安全性違反として表に出ることが多く、サニタイザ付きのファジングでよく見つかります。
+
+ファジングの概要とAFL++の使い方は『Binary Hacks Rebooted』のHack #60とHack #61に、LibAFLによるファザーの実装はHack #62とHack #63にあります。

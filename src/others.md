@@ -62,7 +62,7 @@ RISC-Vにも、2024年に批准された制御フロー保護の拡張があり�
 
 ## 投機的実行への対策
 
-Spectreなどの投機的実行の脆弱性への対策もhardeningの一種で、信頼できないコードを実行するJITを持つ処理系（JavaScriptエンジン、WebAssemblyランタイムなど）は特に影響を受けます。
+Spectreなどの投機的実行の脆弱性への対策もhardeningの一種で、信頼できないコードを実行するJITを持つ処理系（JavaScriptエンジン、WebAssemblyランタイムなど）は特に影響を受けます。MeltdownとSpectreのしくみは『Binary Hacks Rebooted』のHack #67で解説しています。
 
 | 対策 | 内容 |
 |---|---|
