@@ -60,7 +60,7 @@ readelf -n ./mylang-program | grep -E 'x86 feature: .*IBT.*SHSTK|AArch64 feature
 |---|---|
 | ASan | `__sanitizer_start_switch_fiber`と`__sanitizer_finish_switch_fiber`で切り替えを通知する |
 | TSan | `__tsan_create_fiber`、`__tsan_switch_to_fiber`、`__tsan_destroy_fiber`を使う |
-| CET Shadow Stack | コルーチンごとに`map_shadow_stack`で確保し、`SAVEPREVSSP`と`RSTORSSP`で切り替える |
+| CET Shadow Stack | コルーチンごとに`map_shadow_stack`で確保し、`RSTORSSP`と`SAVEPREVSSP`で切り替える |
 | Arm GCS | コルーチンごとに確保し、`GCSSS1`と`GCSSS2`で切り替える |
 | PAC | 同じスタックに戻る限り問題ない。新しいコルーチンへの最初の遷移では`autiasp`を通らないようにする |
 | MTE（スタックのタグ付け） | スタックを`PROT_MTE`付きで確保し、破棄や再利用のときにタグをクリアする |
@@ -180,5 +180,5 @@ Shadow Stackが有効なら、カーネルはシグナルフレームの情報�
 | データ競合を見つける | ランタイムをTSan付きでビルドしたテストを回す |
 | FFI境界のバグを見つける | FFIのテストをASan付きで回す。可能なら自分の言語のコードにもASanの計装を入れる |
 | ハードウェア機構への対応を確かめる | `readelf -n`でELFプロパティを確認する。QEMU（`-cpu max`）でBTI、PAC、MTEを、Intel SDEでCETを有効にしてテストを回す |
-| 実機で確かめる | `GLIBC_TUNABLES=glibc.cpu.x86_shstk=on`でShadow Stackを強制的に有効にしてテストを回す |
+| 実機で確かめる | `GLIBC_TUNABLES=glibc.cpu.hwcaps=SHSTK`でShadow Stackを有効にしてテストを回す |
 | 広くバグを探す | ランタイム、パーサ、FFI境界をファジングする |

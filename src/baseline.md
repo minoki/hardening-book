@@ -20,8 +20,10 @@ binutils 2.39以降の`ld`は次のような警告を出すので、出たら必
 
 ```text
 warning: foo.o: missing .note.GNU-stack section implies executable stack
-warning: a.out has a LOAD segment with RWX permissions
+NOTE: This behaviour is deprecated and will be removed in a future version of the linker
 ```
+
+書き込みと実行の両方を許すセグメントができたときにも、`warning: a.out has a LOAD segment with RWX permissions`という警告が出ます。
 
 `readelf -lW a.out | grep GNU_STACK`でフラグが`RW`になっていることも確認できます。glibc 2.41からは、実行可能スタックを要求する共有ライブラリを`dlopen`するとエラーになるので、この問題は「動かない」という形で表に出るようになってきました。
 

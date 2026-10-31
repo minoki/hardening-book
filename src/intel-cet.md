@@ -36,6 +36,8 @@ gcc   -fcf-protection=branch ... # IBT のみ
 gcc   -fcf-protection=return ... # Shadow Stack のみ
 ```
 
+UbuntuのGCCでは`-fcf-protection`がデフォルトで有効ですが、Clangでは明示的に指定する必要があります。
+
 Clangでx86-64向けに`-fcf-protection=full`を付けると、次のようになります。
 
 ```c
@@ -114,20 +116,20 @@ Shadow Stackのページは、ページテーブル上でWrite=0かつDirty=1と
 | 命令 | 動作 |
 |---|---|
 | `RDSSPQ` | SSPを読む（Shadow Stackが無効なときはNOPなので、事前に0を入れておけば判定に使える） |
-| `INCSSPQ n` | Shadow Stackからn個のエントリを捨てる（`longjmp`などで使う） |
-| `SAVEPREVSSP`、`RSTORSSP` | トークンを使ってShadow Stackを切り替える |
+| `INCSSPQ n` | Shadow Stackからn個のエントリを捨てる（`longjmp`などで使う。Shadow Stackが無効なときは`#UD`になるので、`RDSSPQ`で確かめてから使う） |
+| `RSTORSSP`、`SAVEPREVSSP` | トークンを使ってShadow Stackを切り替える |
 | `WRSSQ` | Shadow Stackに書き込む（OSが許可した場合のみ） |
 
 ### Linuxでの利用
 
-Linux 6.6以降、ユーザー空間でShadow Stackを使えます。有効にするのはglibcで、実行ファイルとすべての共有ライブラリが`SHSTK`プロパティを持っていれば、起動時に`arch_prctl(ARCH_SHSTK_ENABLE, ARCH_SHSTK_SHSTK)`を呼びます。glibc 2.39以降はチューナブル`glibc.cpu.x86_shstk`で挙動を制御できます（デフォルト値はディストリビューションによって異なります）。
+Linux 6.6以降、ユーザー空間でShadow Stackを使えます。有効にするのはglibcで、実行ファイルとすべての共有ライブラリが`SHSTK`プロパティを持っていれば、起動時に`arch_prctl(ARCH_SHSTK_ENABLE, ARCH_SHSTK_SHSTK)`を呼びます。glibc 2.39では有効化はオプトインで、チューナブル`glibc.cpu.hwcaps=SHSTK`で有効にし、`glibc.cpu.x86_shstk`で有効化後の挙動を選びます（デフォルトはディストリビューションによって異なります）。
 
 ```sh
-# Shadow Stack を強制的に有効にして実行（対応CPUとカーネルが必要）
-GLIBC_TUNABLES=glibc.cpu.x86_shstk=on ./a.out
+# Shadow Stack を有効にして実行（対応CPUとカーネルが必要。Ubuntu 24.04で確認）
+GLIBC_TUNABLES=glibc.cpu.hwcaps=SHSTK ./a.out
 ```
 
-有効化後にプロパティのないライブラリを`dlopen`すると失敗します（設定によってはShadow Stackを無効にして続行します）。新しいスレッドのShadow Stackはカーネルが割り当て、追加のShadow Stackは`map_shadow_stack(2)`で確保できます。シグナルハンドラを呼ぶときは、カーネルがShadow Stackにも情報を積み、`sigreturn`で検証します。
+有効化後にプロパティのないライブラリを`dlopen`すると、`rebuild shared object with SHSTK support enabled`というエラーで失敗します。`glibc.cpu.x86_shstk=permissive`ならShadow Stackを無効にして読み込み、`=on`ならプロパティを無視してShadow Stackを有効にしたまま読み込みます。新しいスレッドのShadow Stackはカーネルが割り当て、追加のShadow Stackは`map_shadow_stack(2)`で確保できます。シグナルハンドラを呼ぶときは、カーネルがShadow Stackにも情報を積み、`sigreturn`で検証します。
 
 ### Windowsでの利用
 
@@ -157,7 +159,7 @@ Shadow Stackはプログラムの書き換えを必要としないので、普�
 |---|---|---|
 | `push`してから`ret`で飛ぶ | 間接ジャンプの代わりに`push target; ret` | `jmp *%reg`を使う |
 | スタック上のリターンアドレスを書き換える | GCのためのreturn address hijacking | 別の方法に変える（後述） |
-| `call`で現在位置を得る | 32ビットPICの定番`call next; next: pop %rax` | `pop`してもShadow Stack側は残るので、以降の`ret`がずれる。x86-64ではRIP相対の`lea`を使う |
+| `call`の戻り先を`pop`で捨てる | `call 1f; ...; 1: pop %rax` | Shadow Stack側は残るので、以降の`ret`がずれる。32ビットPICの定番`call next; next: pop`だけは、変位0の`call`がShadow Stackに積まれないので動く。x86-64ではRIP相対の`lea`を使う |
 | `ret`せずにフレームを捨てる | 独自の例外機構、継続 | `INCSSPQ`でShadow Stackも巻き戻す |
 | retpoline | Spectre v2対策で間接分岐を`call`と`ret`で表す | Shadow Stackとは両立しない |
 
@@ -170,14 +172,14 @@ Shadow Stackはプログラムの書き換えを必要としないので、普�
 **コルーチンやグリーンスレッド、ファイバーでスタックを切り替える処理系は、Shadow Stackも一緒に切り替える必要があります**。手順の概略は次の通りです。
 
 1. コルーチンごとに`map_shadow_stack(addr, size, SHADOW_STACK_SET_TOKEN)`でShadow Stackを確保します。先頭にはリストアトークンが置かれます。
-2. 切り替え元で`SAVEPREVSSP`によりトークンを残し、切り替え先に対して`RSTORSSP`を実行します。
+2. 切り替え先のトークンに対して`RSTORSSP`を実行してから、`SAVEPREVSSP`で切り替え元のShadow Stackにトークンを残します。逆の順序では例外になります。
 3. 新しいコルーチンのエントリ関数には、`ret`ではなく`jmp`で入ります。Shadow Stackにはまだ戻り先がないからです。
 
 glibcの`makecontext`と`swapcontext`は対応済みなので、これらを使っていれば自動で処理されます。アセンブリで独自のコンテキスト切り替えを書いているなら自分で対応する必要があり、glibcやBoost.Contextの実装が参考になります。スタックを伸長する処理系では、Shadow Stackのサイズも別途考えておきます。リターンアドレスしか積まないので小さくて済みますが、再帰の深さには比例します。
 
 ### 継続とスタックのコピー
 
-スタックの内容をコピーして後で書き戻す方式の継続は、**Shadow Stackとは基本的に両立しません**。通常のスタックは書き戻せても、Shadow Stackは普通の命令では書き戻せないからです。Linuxには`WRSS`を許可する`ARCH_SHSTK_WRSS`もありますが、保護を弱めます。
+スタックの内容をコピーして後で書き戻す方式の継続は、**Shadow Stackとは基本的に両立しません**。通常のスタックは書き戻せても、Shadow Stackは普通の命令では書き戻せないからです。Linuxには`WRSS`を許可する`ARCH_SHSTK_WRSS`もありますが、保護を弱めます。しかもglibcは通常、起動時にこの設定をロックするので、後から有効にしようとしても`EPERM`で失敗します（`permissive`のときを除く）。
 
 継続ごとに独立したスタック（とShadow Stack）を割り当てる、ワンショットの継続に制限してスタック切り替えで実装する、CPS変換でスタックに依存しない実装にする、といった設計の変更を検討しましょう。
 
@@ -196,9 +198,11 @@ Cから呼ばれるコールバックの先頭には`ENDBR64`が必要です。�
 実機がなければ、Intel SDE（Software Development Emulator）でCETを有効にして実行するのが手軽です。
 
 ```sh
-sde -cet -cet-stderr -- ./a.out
+sde64 -cet -cet_stderr -cet_abort -- ./a.out
 ```
+
+`-cet_abort`を付けないと、違反してもメッセージが出ないまま`SIGSEGV`で終わることがあります。付けると、Shadow Stackの違反なら期待した戻り先と実際の戻り先が、IBTの違反なら直前の間接分岐が表示されます。
 
 『Binary Hacks Rebooted』のHack #57では、Hack #56で組み立てたROPによる攻撃がSDE上のShadow Stackで止まる様子を見ています。
 
-LinuxでShadow Stackの違反が起きると、`SIGSEGV`（`si_code`は`SEGV_CPERR`）でプロセスが終了し、カーネルログにも`control protection fault`と記録されます。
+LinuxでShadow Stackの違反が起きると、`SIGSEGV`（`si_code`は`SEGV_CPERR`）でプロセスが終了し、カーネルログにも`control protection ip:... error:1(near ret)`のような行が残ります（プログラムが`SIGSEGV`を自分で処理した場合は残りません）。
