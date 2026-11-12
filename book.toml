@@ -2,3 +2,6 @@
 title = "言語処理系開発者のためのhardening入門"
 authors = ["ARATA Mizuki"]
 language = "ja"
+
+[output.html]
+additional-css = ["theme/text-autospace.css"]
